@@ -11,7 +11,7 @@ See `claude.md` for current focus and recent changes. This file (`AGENTS.md`) is
 - **The README is a public artifact.** Anyone visiting github.com/Talador12 sees it. Be thoughtful about wording, employment framing, contact info, and anything personally identifying.
 - **Don't add personal info Keith hasn't explicitly approved.** Real name, location, phone, employment status, work history — ask first.
 - **No build step, no runtime deps.** Markdown + a Makefile template only. Resist scope creep (no GitHub Actions, badge fetchers, stats cards) unless explicitly asked.
-- **`.zshrc` is symlinked from `~/.zshrc`.** The file in this repo IS the live shell config — editing it changes Keith's shell on next sourced load. Never commit secrets, API tokens, or anything you wouldn't push to a public repo. Anything sensitive belongs in a non-tracked file (e.g. `~/.zsh/secrets.zsh`) that the `.zshrc` sources conditionally.
+- **`.zshrc` is symlinked from `~/.zshrc`.** The file in this repo IS the live shell config — editing it changes Keith's shell on next sourced load. Never commit secrets, API tokens, or anything you wouldn't push to a public repo. Work-specific config (GEICO kubectl, Azure tokens) belongs in `~/.zsh/geico.zsh`; other secrets in `~/.zsh/secrets.zsh` — both sourced conditionally, neither tracked.
 
 ## Quick Reference
 
