@@ -6,15 +6,19 @@ See `AGENTS.md` for rules and editing style. This file is rolling status — upd
 
 New GEICO laptop setup (2026-07-01). Dual GitHub accounts wired (`Talador12` + `keithadler_geico`), shell tooling installed, `~/Makefile` is the laptop runbook. `~/.zshrc` symlinked to this repo.
 
-**Status:** Shell loads clean. `make setup` / `make shell-check` / `make github-test` pass. p10k config wizard still pending (first interactive terminal session).
+**Status:** Shell loads clean. Toolchains installed (`make dev-tools-status`). p10k wizard still pending.
 
 **One manual step:** Set terminal font to **MesloLGS Nerd Font** (installed via `make setup-shell`) for p10k icons to render correctly.
 
 ## Recent Changes
 
+### 2026-07-01 (b)
+- **Toolchains** — uv-style stack: **uv** (Python 3.14), **rustup** (Rust 1.96), **mise** (Go 1.26 only), **bun** (Node). `make setup-dev-tools` / `dev-tools-status` / `dev-tools-update`. Dropped pyenv/nvm/asdf.
+- **AGENTS.md** — toolchain philosophy table added.
+
 ### 2026-07-01
 - **`.zshrc`** — macOS rewrite: oh-my-zsh + powerlevel10k + plugins (git, docker, kubectl, brew, macos, z, autosuggestions, syntax-highlighting). GitHub dual-account helpers (`gh-personal`, `clone-personal`, etc.). GEICO work config moved to local `~/.zsh/geico.zsh`. Removed Cloudflare/Linux cruft (wrangler, exa paths, `/home/talador`).
-- **`~/Makefile`** — laptop runbook: `make setup`, `setup-shell`, `github-*`, `clone-personal/geico`, `shell-check`, enhanced `status`.
+- **`Makefile.laptop`** — laptop runbook symlinked from `~/Makefile` (GitHub, shell, toolchains). Generic `Makefile` stays a project template.
 - **GitHub** — HTTPS via `gh` on corp network (Zscaler blocks SSH). SSH keys + `~/.ssh/config` (port 443) kept for off-VPN use.
 - **AGENTS.md** — documented `~/.zsh/geico.zsh` pattern for work-specific local config.
 
@@ -32,6 +36,5 @@ New GEICO laptop setup (2026-07-01). Dual GitHub accounts wired (`Talador12` + `
 ## Ideas for Next Iteration
 
 1. Save configured `~/.p10k.zsh` into dotfiles once wizard is done.
-2. `make setup-dev-tools` for nvm/pyenv when needed.
-3. Pin repos on GitHub profile UI.
-4. Starter template distilling AGENTS.md + Makefile for new repos.
+2. Pin repos on GitHub profile UI.
+3. Starter template distilling AGENTS.md + Makefile for new repos.

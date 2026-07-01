@@ -21,7 +21,31 @@ make status      # branch, last commit, version, port usage
 make commit M='message'   # format + add + commit + push
 ```
 
-The `Makefile` in this repo is a **generic template** for reuse across new projects — not all targets are wired up here (deploy, test, etc. are TODO stubs by design). Copy this Makefile into new repos and override the variables at the top (`PROJECT_NAME`, `INSTALL_CMD`, `BUILD_CMD`, etc.).
+The laptop runbook lives in **`Makefile.laptop`** — that is the single source of truth. `make` works from `~` or from this repo:
+
+| File | Purpose |
+|------|---------|
+| `Makefile.laptop` | Laptop runbook (GitHub, shell, toolchains) — **edit this** |
+| `Makefile` | Symlink → `Makefile.laptop` (so `make` works in-repo) |
+| `Makefile.template` | Generic project template — copy into new repos |
+| `~/Makefile` | Symlink → `Makefile.laptop` (so `make` works from home) |
+
+Run `make symlink-home` after clone to wire up `~/Makefile`, `~/.zshrc`, `~/AGENTS.md`, `~/claude.md`.
+
+Copy **`Makefile.template`** (not `Makefile.laptop`) when starting a new project.
+
+## Toolchain philosophy
+
+One fast, purpose-built tool per language — no pyenv/pip/poetry, no nvm/npm, no asdf catch-all:
+
+| Language | Tool | Use for |
+|----------|------|---------|
+| Python | **uv** | versions, venv, deps, `uv run` |
+| Rust | **rustup** | toolchains, `cargo` |
+| Go | **mise** | global version pin (projects use `go.mod` toolchain) |
+| Node | **bun** | runtime + packages |
+
+`make setup-dev-tools` / `make dev-tools-status` / `make dev-tools-update`
 
 ## Layout
 
@@ -30,7 +54,8 @@ The `Makefile` in this repo is a **generic template** for reuse across new proje
 | `README.md` | Renders on the GitHub profile page. Keep it tasteful. |
 | `AGENTS.md` | This file — stable rules and SOP for agents. |
 | `claude.md` | Rolling status: current focus, recent changes, ideas for next iteration. Update every commit. |
-| `Makefile` | Generic Makefile template (copy into new repos as a starting point). |
+| `Makefile.template` | Generic Makefile template (copy into new repos as `Makefile`). |
+| `Makefile.laptop` | Laptop runbook — source of truth; symlinked as `Makefile` and `~/Makefile`. |
 | `.zshrc` | Symlinked from `~/.zshrc`. The repo file IS the live shell config — public. |
 | `LICENSE` | MIT, © Keith Adler. |
 

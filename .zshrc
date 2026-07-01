@@ -60,10 +60,13 @@ github-keys() {
 ##############################################################
 
 alias 1pass="op signin"
-alias create_venv="python3 -m venv venv/"
+alias create_venv="uv venv"
+alias py="uv run python"
+alias pip="uv pip"
+alias sync="uv sync"
 alias change="git add -A && git commit -m 'hotfix to squash' && git push"
 alias latr="ls -latr"
-alias venv="source venv/bin/activate"
+alias venv="source .venv/bin/activate"
 alias amend="git add -A && git commit --amend --no-edit && git push --force"
 
 if command -v eza &>/dev/null; then
@@ -80,9 +83,9 @@ alias adventure='cd "$REPOS_PERSONAL/adventure" 2>/dev/null || cd "$REPOS_PERSON
 ##############################################################
 
 if command -v figlet &>/dev/null; then
-  ORANGE="\e[38;5;208m"
+  GEICO_BLUE="\e[38;5;27m"
   STOPCOLOR="\e[0m"
-  printf "${ORANGE}"
+  printf "${GEICO_BLUE}"
   figlet -c -l "GEICO"
   printf "${STOPCOLOR}"
 fi
@@ -94,17 +97,20 @@ typeset -g POWERLEVEL9K_INSTANT_PROMPT=quiet
 
 ##############################################################
 #                     Toolchains                             #
+#  Python → uv       (versions, venv, deps, run)
+#  Rust   → rustup   (official toolchain manager)
+#  Go     → mise     (version pin; projects use go.mod toolchain)
+#  Node   → bun      (runtime + packages; use mise node only if needed)
 ##############################################################
 
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
-
-if command -v pyenv &>/dev/null; then
-  export PYENV_ROOT="$HOME/.pyenv"
-  [[ -d $PYENV_ROOT/bin ]] && export PATH="$PYENV_ROOT/bin:$PATH"
-  eval "$(pyenv init -)"
-  command -v pyenv-virtualenv-init &>/dev/null && eval "$(pyenv virtualenv-init -)"
+if command -v mise &>/dev/null; then
+  eval "$(mise activate zsh)"
 fi
 
+[[ -f "$HOME/.cargo/env" ]] && source "$HOME/.cargo/env"
+
 export PATH="$HOME/.local/bin:$PATH"
+
+if command -v uv &>/dev/null; then
+  eval "$(uv generate-shell-completion zsh 2>/dev/null)" || true
+fi

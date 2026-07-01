@@ -1,0 +1,472 @@
+MAKEFLAGS += --no-print-directory --warn-undefined-variables --output-sync=target
+
+# Laptop runbook — single source of truth.
+# Runnable via: make (from ~ or this repo; both symlink here)
+# Generic project template: Makefile.template
+
+################################################################################
+#                                 Variables                                    #
+################################################################################
+
+SHELL := /bin/bash
+
+# Project identity — home-directory laptop runbook.
+PROJECT_NAME := laptop
+
+# GitHub dual-account layout.
+REPOS_PERSONAL := $(HOME)/repos/talador12
+REPOS_GEICO    := $(HOME)/repos/geico
+GH_USER_PERSONAL := Talador12
+GH_USER_GEICO    := keithadler_geico
+GH_PROTOCOL      := https
+
+# Flip to true when ready to deploy production. Guards all prod targets.
+PRODUCTION_RELEASE := false
+
+# Ports — adjust to your stack. One port is enough for most projects.
+PORT_DEV := 5173
+
+# Version from package.json (Node). For other stacks, swap the shell expression:
+#   Python:  $(shell python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+#   Cargo:   $(shell grep '^version' Cargo.toml | head -1 | cut -d'"' -f2)
+#   Static:  $(shell cat VERSION 2>/dev/null || echo "0.0.0")
+VERSION := $(shell node -p "require('./package.json').version" 2>/dev/null || echo "0.0.0")
+
+# Per-command knobs. Override here once and the targets below pick them up.
+INSTALL_CMD   := npm install
+DEV_CMD       := npx vite --port $(PORT_DEV)
+BUILD_CMD     := npm run build
+TEST_CMD      := npm test
+FORMAT_CMD    := npx prettier --write .
+LINT_CMD      := npx prettier --check .
+TYPECHECK_CMD := npx tsc --noEmit
+CLEAN_DIRS    := node_modules dist .vite .turbo .next
+
+################################################################################
+#                                 Functions                                    #
+################################################################################
+
+# Gate macro — aborts if PRODUCTION_RELEASE is not true.
+define require_production_release
+	@if [ "$(PRODUCTION_RELEASE)" != "true" ]; then \
+		echo ""; \
+		echo "  PRODUCTION_RELEASE is false. Set to true in Makefile"; \
+		echo "  to enable production deployments."; \
+		echo ""; \
+		exit 1; \
+	fi
+endef
+
+################################################################################
+#                                 Meta                                         #
+################################################################################
+
+.DEFAULT_GOAL := help
+.PHONY: help list-targets makeinfo
+
+# Prevent Make from trying to remake Makefile via pattern rule.
+Makefile: makeinfo ;
+
+################################################################################
+#                             Development                                      #
+################################################################################
+
+dev: makeinfo kill ## [Dev] Start dev server (foreground)
+	@echo "Starting dev server..."
+	@$(DEV_CMD) & \
+	sleep 2 && \
+	echo "" && \
+	echo "  Dev: http://localhost:$(PORT_DEV)" && \
+	echo "" && \
+	wait
+
+dev-bg: makeinfo kill ## [Dev] Start dev server (background)
+	@nohup $(DEV_CMD) > /tmp/$(PROJECT_NAME)-dev.log 2>&1 &
+	@sleep 2
+	@echo ""
+	@echo "  Dev: http://localhost:$(PORT_DEV)"
+	@echo "  Logs: tail -f /tmp/$(PROJECT_NAME)-dev.log"
+	@echo "  Stop: make kill"
+	@echo ""
+
+dev-logs: ## [Dev] Tail background dev server logs
+	@tail -f /tmp/$(PROJECT_NAME)-dev.log 2>/dev/null || echo "No background logs found. Run 'make dev-bg' first."
+
+start: makeinfo ## [Dev] Quick start: kill, build, dev
+	$(MAKE) kill
+	$(MAKE) build
+	$(MAKE) dev
+
+fresh: makeinfo ## [Dev] Full reset: clean, install, format, build, dev
+	$(MAKE) kill
+	$(MAKE) clean
+	$(MAKE) install
+	$(MAKE) format
+	$(MAKE) build
+	$(MAKE) dev
+
+open: makeinfo ## [Dev] Open dev server in browser
+	@open http://localhost:$(PORT_DEV) 2>/dev/null || xdg-open http://localhost:$(PORT_DEV) 2>/dev/null || echo "Open manually: http://localhost:$(PORT_DEV)"
+
+################################################################################
+#                                Build                                         #
+################################################################################
+
+build: makeinfo ## [Build] Build the project
+	$(BUILD_CMD)
+
+################################################################################
+#                                 Test                                         #
+################################################################################
+
+test: makeinfo ## [Test] Run the test suite
+	$(TEST_CMD)
+
+test-watch: makeinfo ## [Test] Run tests in watch mode (override TEST_WATCH_CMD if needed)
+	$(or $(TEST_WATCH_CMD),npx vitest)
+
+################################################################################
+#                                Deploy                                        #
+################################################################################
+
+# Wire these up per-project. The staging target is open; the prod target is gated.
+
+deploy: makeinfo ## [Deploy] Deploy to staging (override per project)
+	@echo "  TODO: wire up 'deploy' for $(PROJECT_NAME)"
+
+deploy-prod: makeinfo ## [Deploy] Deploy to production (gated by PRODUCTION_RELEASE)
+	$(require_production_release)
+	@echo "  TODO: wire up 'deploy-prod' for $(PROJECT_NAME)"
+
+################################################################################
+#                                Release                                       #
+################################################################################
+
+release: makeinfo ## [Release] Tag, push, and create GitHub release
+	@echo "  Releasing v$(VERSION)"
+	@if git tag -l "v$(VERSION)" | grep -q "v$(VERSION)"; then \
+		echo "ERROR: Tag v$(VERSION) already exists. Bump version first."; \
+		exit 1; \
+	fi
+	@if [ -n "$$(git status --porcelain)" ]; then \
+		echo "ERROR: Working tree is dirty. Commit or stash first."; \
+		exit 1; \
+	fi
+	git tag -a "v$(VERSION)" -m "Release v$(VERSION)"
+	git push origin "v$(VERSION)"
+	gh release create "v$(VERSION)" \
+		--title "v$(VERSION)" \
+		--notes-file - <<< "$$(git log $$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || git rev-list --max-parents=0 HEAD)..HEAD --oneline --no-decorate)"
+	@echo "  Released v$(VERSION)"
+
+release-patch: makeinfo ## [Release] Bump patch (0.1.0 -> 0.1.1), commit, release
+	@$(MAKE) _bump-version BUMP=patch
+	@$(MAKE) release
+
+release-minor: makeinfo ## [Release] Bump minor (0.1.0 -> 0.2.0), commit, release
+	@$(MAKE) _bump-version BUMP=minor
+	@$(MAKE) release
+
+_bump-version: makeinfo
+	@old=$(VERSION); \
+	IFS='.' read -r major minor patch <<< "$$old"; \
+	if [ "$(BUMP)" = "patch" ]; then patch=$$((patch + 1)); \
+	elif [ "$(BUMP)" = "minor" ]; then minor=$$((minor + 1)); patch=0; \
+	elif [ "$(BUMP)" = "major" ]; then major=$$((major + 1)); minor=0; patch=0; \
+	fi; \
+	new="$$major.$$minor.$$patch"; \
+	node -e "const p=require('./package.json');p.version='$$new';require('fs').writeFileSync('package.json',JSON.stringify(p,null,2)+'\n')"; \
+	git add package.json; \
+	git commit -m "chore: bump version to v$$new"; \
+	echo "Bumped $$old -> $$new"
+
+################################################################################
+#                                 Status                                       #
+################################################################################
+
+status: makeinfo ## [Monitor] Shell, GitHub, branch, version, release gate
+	@echo ""
+	@echo "  Shell: $$(zsh --version 2>/dev/null || echo 'zsh not found')"
+	@if [ -d "$(HOME)/.oh-my-zsh" ]; then echo "  oh-my-zsh: installed"; else echo "  oh-my-zsh: missing (run make setup-shell)"; fi
+	@if [ -f "$(HOME)/.p10k.zsh" ]; then echo "  p10k config: present"; else echo "  p10k config: missing (run p10k configure in a new terminal)"; fi
+	@echo ""
+	@echo "  Toolchains:"
+	@command -v uv >/dev/null && echo "    python: $$(uv run python --version 2>/dev/null)" || echo "    python: uv not installed (make setup-dev-tools)"
+	@command -v go >/dev/null && echo "    go:     $$(go version 2>/dev/null | awk '{print $$3}')" || echo "    go:     not installed"
+	@command -v rustc >/dev/null && echo "    rust:   $$(rustc --version 2>/dev/null | awk '{print $$2}')" || echo "    rust:   not installed"
+	@command -v bun >/dev/null && echo "    bun:    $$(bun --version 2>/dev/null)" || echo "    bun:    not installed"
+	@echo ""
+	@echo "  GitHub (gh):"
+	@gh auth status 2>&1 | sed 's/^/    /' || echo "    not logged in (run make github-login)"
+	@echo ""
+	@echo "  Repo dirs:"
+	@echo "    personal: $(REPOS_PERSONAL) ($$(ls -1 '$(REPOS_PERSONAL)' 2>/dev/null | wc -l | tr -d ' ') repos)"
+	@echo "    geico:    $(REPOS_GEICO) ($$(ls -1 '$(REPOS_GEICO)' 2>/dev/null | wc -l | tr -d ' ') repos)"
+	@echo ""
+	@pid=$$(lsof -ti :$(PORT_DEV) 2>/dev/null); \
+	if [ -n "$$pid" ]; then echo "  :$(PORT_DEV)  active (PID $$pid)"; else echo "  :$(PORT_DEV)  free"; fi
+	@echo ""
+	@echo "  Branch: $$(git branch --show-current 2>/dev/null || echo 'not a git repo')"
+	@echo "  Last commit: $$(git log -1 --oneline 2>/dev/null || echo 'no commits')"
+	@echo "  Version: v$(VERSION)"
+	@echo "  PRODUCTION_RELEASE = $(PRODUCTION_RELEASE)"
+	@echo ""
+
+################################################################################
+#                                Cleanup                                       #
+################################################################################
+
+clean: makeinfo kill ## [Cleanup] Kill servers + remove generated files and deps
+	rm -rf $(CLEAN_DIRS)
+
+kill: makeinfo ## [Cleanup] Kill the dev server port
+	@pid=$$(lsof -ti :$(PORT_DEV) 2>/dev/null); \
+	if [ -n "$$pid" ]; then echo "Killing port $(PORT_DEV) (pid: $$pid)"; echo $$pid | xargs kill -9 2>/dev/null; fi
+	@rm -f /tmp/$(PROJECT_NAME)-dev.log
+	@echo "Dev server stopped."
+
+################################################################################
+#                                Utility                                       #
+################################################################################
+
+install: makeinfo ## [Utility] Install dependencies
+	$(INSTALL_CMD)
+
+format: makeinfo ## [Utility] Format the codebase
+	$(FORMAT_CMD)
+
+lint: makeinfo ## [Utility] Check formatting / lint
+	$(LINT_CMD)
+
+typecheck: makeinfo ## [Utility] Type-check (no emit)
+	$(TYPECHECK_CMD)
+
+ci: makeinfo ## [Utility] Full CI pipeline: typecheck + lint + build + test
+	@echo "Running CI pipeline..."
+	$(MAKE) typecheck
+	$(MAKE) lint
+	$(MAKE) build
+	$(MAKE) test
+
+commit: makeinfo ## [Git] Format + commit + push: make commit M='message'
+	@msg="$(M)"; \
+	if [ -z "$$msg" ]; then echo "Usage: make commit M='your message'"; exit 1; fi; \
+	$(MAKE) format; \
+	git add .; \
+	git commit -m "$$msg"; \
+	git push
+
+tree: makeinfo ## [Utility] Print directory tree (ignores common build artifacts)
+	tree -I 'node_modules|.git|dist|.next|.turbo|.vite|public|venv|__pycache__|target' -L 5
+
+################################################################################
+#                                GitHub                                        #
+################################################################################
+
+setup: makeinfo ## [Setup] Full laptop bootstrap: shell + toolchains + GitHub
+	$(MAKE) setup-shell
+	$(MAKE) symlink-home
+	$(MAKE) setup-dev-tools
+	$(MAKE) github-setup
+	@echo ""
+	@echo "  Setup complete. Open a new terminal (or: exec zsh)."
+	@echo "  If p10k wizard appears, run through it once."
+	@echo ""
+
+github-setup: makeinfo ## [GitHub] Verify gh auth, HTTPS protocol, git credential helper
+	@command -v gh >/dev/null || { echo "ERROR: gh not installed. brew install gh"; exit 1; }
+	@gh auth setup-git
+	@gh config set -h github.com git_protocol $(GH_PROTOCOL)
+	@echo ""
+	@echo "  gh accounts:"
+	@gh auth status 2>&1 | sed 's/^/    /'
+	@echo ""
+	@echo "  Run 'make github-login' if any account is missing."
+	@echo "  Corp network uses HTTPS (Zscaler blocks SSH). Off VPN, try 'make github-test-ssh'."
+
+github-login: makeinfo ## [GitHub] Interactive gh login (run twice for both accounts)
+	@echo "  Log in as $(GH_USER_PERSONAL), then run again for $(GH_USER_GEICO)."
+	gh auth login
+
+github-status: makeinfo ## [GitHub] Show gh accounts, active user, repo dirs
+	@echo ""
+	@gh auth status 2>&1 || true
+	@echo ""
+	@echo "  personal: $(REPOS_PERSONAL)"
+	@echo "  geico:    $(REPOS_GEICO)"
+	@echo "  protocol: $(GH_PROTOCOL)"
+	@echo ""
+
+github-test: makeinfo ## [GitHub] Test HTTPS access for both accounts
+	@echo "  Testing $(GH_USER_PERSONAL)..."
+	@gh auth switch -u $(GH_USER_PERSONAL) >/dev/null && gh api user --jq '.login' | grep -q $(GH_USER_PERSONAL) && echo "  ✓ $(GH_USER_PERSONAL)" || { echo "  ✗ $(GH_USER_PERSONAL)"; exit 1; }
+	@echo "  Testing $(GH_USER_GEICO)..."
+	@gh auth switch -u $(GH_USER_GEICO) >/dev/null && gh api user --jq '.login' | grep -q $(GH_USER_GEICO) && echo "  ✓ $(GH_USER_GEICO)" || { echo "  ✗ $(GH_USER_GEICO)"; exit 1; }
+	@gh auth switch -u $(GH_USER_PERSONAL) >/dev/null
+	@echo "  Active account reset to $(GH_USER_PERSONAL)."
+
+github-test-ssh: makeinfo ## [GitHub] Test SSH (works off VPN; blocked by Zscaler on corp net)
+	@echo "  personal:"
+	@ssh -T -o ConnectTimeout=10 git@github.com-personal 2>&1 || true
+	@echo "  geico:"
+	@ssh -T -o ConnectTimeout=10 git@github.com-geico 2>&1 || true
+
+github-keys: makeinfo ## [GitHub] Print SSH public keys for GitHub settings
+	@echo "=== Personal ($(GH_USER_PERSONAL)) ==="
+	@cat $(HOME)/.ssh/id_ed25519_personal.pub 2>/dev/null || echo "  missing — run make github-keys-generate"
+	@echo ""
+	@echo "=== GEICO ($(GH_USER_GEICO)) ==="
+	@cat $(HOME)/.ssh/id_ed25519_geico.pub 2>/dev/null || echo "  missing — run make github-keys-generate"
+
+github-keys-generate: makeinfo ## [GitHub] Generate SSH key pair for both accounts
+	@mkdir -p $(HOME)/.ssh && chmod 700 $(HOME)/.ssh
+	@[ -f $(HOME)/.ssh/id_ed25519_personal ] || ssh-keygen -t ed25519 -C "$(GH_USER_PERSONAL)@github" -f $(HOME)/.ssh/id_ed25519_personal -N ""
+	@[ -f $(HOME)/.ssh/id_ed25519_geico ] || ssh-keygen -t ed25519 -C "$(GH_USER_GEICO)@github" -f $(HOME)/.ssh/id_ed25519_geico -N ""
+	@$(MAKE) github-keys
+
+gh-personal: makeinfo ## [GitHub] Switch gh to personal account
+	@gh auth switch -u $(GH_USER_PERSONAL)
+
+gh-geico: makeinfo ## [GitHub] Switch gh to GEICO account
+	@gh auth switch -u $(GH_USER_GEICO)
+
+clone-personal: makeinfo ## [GitHub] Clone personal repo: make clone-personal REPO=Talador12/foo
+	@[ -n "$(REPO)" ] || { echo "Usage: make clone-personal REPO=Talador12/foo"; exit 1; }
+	@gh auth switch -u $(GH_USER_PERSONAL)
+	@git clone "https://github.com/$(REPO).git" "$(REPOS_PERSONAL)/$$(basename $(REPO))"
+
+clone-geico: makeinfo ## [GitHub] Clone GEICO repo: make clone-geico REPO=geico-private/foo
+	@[ -n "$(REPO)" ] || { echo "Usage: make clone-geico REPO=geico-private/foo"; exit 1; }
+	@gh auth switch -u $(GH_USER_GEICO)
+	@git clone "https://github.com/$(REPO).git" "$(REPOS_GEICO)/$$(basename $(REPO))"
+
+################################################################################
+#                                 Shell                                        #
+################################################################################
+
+setup-shell: makeinfo ## [Shell] Install oh-my-zsh, p10k, plugins, fonts, CLI tools
+	@echo "  Installing Homebrew packages..."
+	@brew install figlet eza 2>/dev/null || brew install figlet eza
+	@brew install --cask font-meslo-lg-nerd-font 2>/dev/null || true
+	@if [ ! -d "$(HOME)/.oh-my-zsh" ]; then \
+		echo "  Installing oh-my-zsh..."; \
+		RUNZSH=no CHSH=no KEEP_ZSHRC=yes sh -c "$$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"; \
+	else \
+		echo "  oh-my-zsh: already installed"; \
+	fi
+	@ZSH_CUSTOM="$(HOME)/.oh-my-zsh/custom"; \
+	if [ ! -d "$$ZSH_CUSTOM/themes/powerlevel10k" ]; then \
+		echo "  Installing powerlevel10k theme..."; \
+		git clone --depth=1 https://github.com/romkatv/powerlevel10k.git "$$ZSH_CUSTOM/themes/powerlevel10k"; \
+	fi; \
+	if [ ! -d "$$ZSH_CUSTOM/plugins/zsh-autosuggestions" ]; then \
+		echo "  Installing zsh-autosuggestions..."; \
+		git clone https://github.com/zsh-users/zsh-autosuggestions "$$ZSH_CUSTOM/plugins/zsh-autosuggestions"; \
+	fi; \
+	if [ ! -d "$$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" ]; then \
+		echo "  Installing zsh-syntax-highlighting..."; \
+		git clone https://github.com/zsh-users/zsh-syntax-highlighting "$$ZSH_CUSTOM/plugins/zsh-syntax-highlighting"; \
+	fi
+	@mkdir -p $(HOME)/.zsh
+	@echo "  Shell tooling installed."
+
+symlink-home: makeinfo ## [Shell] Symlink ~/Makefile, ~/.zshrc, ~/AGENTS.md, ~/claude.md into repo
+	@REPO="$(REPOS_PERSONAL)/talador12"; \
+	for pair in \
+		"$(HOME)/Makefile:$$REPO/Makefile.laptop" \
+		"$(HOME)/.zshrc:$$REPO/.zshrc" \
+		"$(HOME)/AGENTS.md:$$REPO/AGENTS.md" \
+		"$(HOME)/claude.md:$$REPO/claude.md"; do \
+		link=$${pair%%:*}; target=$${pair#*:}; \
+		if [ ! -f "$$target" ]; then echo "ERROR: $$target not found"; exit 1; fi; \
+		if [ -L "$$link" ]; then echo "  $$link -> $$(readlink "$$link")"; \
+		elif [ -e "$$link" ]; then cp "$$link" "$$link.bak.$$(date +%Y%m%d)"; rm "$$link"; ln -s "$$target" "$$link"; echo "  $$link -> $$target (backed up)"; \
+		else ln -s "$$target" "$$link"; echo "  $$link -> $$target"; fi; \
+	done
+
+symlink-zshrc: makeinfo ## [Shell] Link ~/.zshrc to profile repo (alias for symlink-home)
+	@$(MAKE) symlink-home
+
+shell-check: makeinfo ## [Shell] Verify zsh loads without errors
+	@echo "  Checking zsh startup..."
+	@zsh -lic '\
+		echo "  zsh: $$ZSH_VERSION"; \
+		[[ -n "$$ZSH" ]] && echo "  oh-my-zsh: ok" || { echo "  oh-my-zsh: missing"; exit 1; }; \
+		typeset -f gh-personal >/dev/null && echo "  gh-personal: ok" || { echo "  gh-personal: missing"; exit 1; }; \
+		typeset -f clone-geico >/dev/null && echo "  clone-geico: ok" || { echo "  clone-geico: missing"; exit 1; }; \
+		[[ -d "$$REPOS_PERSONAL" ]] && echo "  REPOS_PERSONAL: ok" || { echo "  REPOS_PERSONAL: missing"; exit 1; }; \
+		command -v figlet >/dev/null && echo "  figlet: ok" || echo "  figlet: not installed"; \
+		command -v uv >/dev/null && echo "  uv: ok" || echo "  uv: missing"; \
+		command -v mise >/dev/null && echo "  mise: ok" || echo "  mise: missing"; \
+		echo "  shell-check passed." \
+	'
+
+################################################################################
+#                              Dev Toolchains                                  #
+################################################################################
+
+setup-dev-tools: makeinfo ## [Dev] Install uv, rustup, mise (go), bun — latest toolchains
+	@echo "  Installing uv, mise, bun..."
+	@brew install uv mise bun 2>/dev/null || brew install uv mise bun
+	@mkdir -p $(HOME)/.config/mise
+	@printf '%s\n' '[tools]' 'go = "latest"' > "$(HOME)/.config/mise/config.toml"
+	@echo "  mise: Go only (Python=uv, Rust=rustup, Node=bun)"
+	@echo "  Installing Go via mise..."
+	@mise install -y 2>&1
+	@if ! command -v rustc >/dev/null; then \
+		echo "  Installing Rust via rustup..."; \
+		curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable; \
+	else \
+		echo "  rustup: already installed ($$(rustc --version))"; \
+	fi
+	@echo "  Installing latest Python via uv..."
+	@uv python install 3 --default 2>&1 || uv python install 3.13 2>&1
+	@uv python update-shell 2>&1 || true
+	@echo ""
+	@$(MAKE) dev-tools-status
+
+dev-tools-status: makeinfo ## [Dev] Show active Python, Go, Rust, Node versions
+	@echo ""
+	@echo "  Python (uv):"
+	@command -v uv >/dev/null && uv python list 2>&1 | sed 's/^/    /' || echo "    uv not installed"
+	@command -v uv >/dev/null && uv run python --version 2>&1 | sed 's/^/    active: /' || true
+	@echo ""
+	@echo "  Go (mise):"
+	@command -v go >/dev/null && echo "    $$(go version)" || echo "    not on PATH"
+	@command -v mise >/dev/null && mise list 2>&1 | sed 's/^/    /' || true
+	@echo ""
+	@echo "  Rust (rustup):"
+	@. "$(HOME)/.cargo/env" 2>/dev/null; command -v rustc >/dev/null && echo "    $$(rustc --version)" || echo "    not installed (run make setup-dev-tools)"
+	@. "$(HOME)/.cargo/env" 2>/dev/null; command -v rustup >/dev/null && rustup show active-toolchain 2>&1 | sed 's/^/    /' || true
+	@echo ""
+	@echo "  Node (bun):"
+	@command -v bun >/dev/null && echo "    $$(bun --version)" || echo "    not installed"
+	@echo ""
+
+dev-tools-update: makeinfo ## [Dev] Upgrade all toolchains to latest
+	@uv python install 3 --reinstall 2>&1 || uv python install 3.13 --reinstall 2>&1
+	@mise upgrade 2>&1
+	@command -v rustup >/dev/null && rustup update stable 2>&1 || true
+	@command -v bun >/dev/null && brew upgrade bun 2>&1 || true
+	@echo "  Updated. Run 'make dev-tools-status' to verify."
+
+################################################################################
+#                              Help & Info                                     #
+################################################################################
+
+help: # Help command — lists targets with descriptions, sorted, colorized.
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "} {printf "%s %03d:## %s\n", $$1, length($$1), $$2}' | sort -k1,1 -k2,2n | awk -F':## ' '{split($$1, parts, " "); printf "\033[36m%-22s\033[0m %s\n", parts[1], $$2}'
+
+list-targets: ## [Utility] List ALL targets (including private)
+	@LC_ALL=C $(MAKE) -pRrq -f $(firstword $(MAKEFILE_LIST)) : 2>/dev/null | awk -v RS= -F: '/(^|\n)# Files(\n|$$)/,/(^|\n)# Finished Make data base/ {if ($$1 !~ "^[#.]") {print $$1}}' | sort | grep -E -v -e '^[^[:alnum:]]' -e '^$$@$$'
+
+MAKECMDGOALS ?=
+
+makeinfo: # Banner — prints "Running: <goal>" before each target.
+	@goal="$(MAKECMDGOALS)"; \
+	if [ "$$goal" = "" ] || [ "$$goal" = "makeinfo" ] || [ "$$goal" = "help" ]; then exit 0; fi; \
+	echo "" 1>&2; \
+	echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" 1>&2; \
+	echo "  Running: $$goal" 1>&2; \
+	echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" 1>&2; \
+	echo "" 1>&2

@@ -14,13 +14,13 @@
 
 ### 🛠 Currently
 
-**[Adventure](https://github.com/Talador12/adventure)** — a browser-first D&D 5e virtual tabletop. React, Cloudflare Workers, Durable Objects, Workers AI. Every seat at the table can be human, AI, or empty.
+**[Adventure](https://github.com/Talador12/adventure)** — a browser-first D&D 5e virtual tabletop. React, Durable Objects, Workers AI. Every seat at the table can be human, AI, or empty.
 
 Also: tooling and workflows around **agentic coding** — making AI a real pair-programmer instead of a parlor trick.
 
 ### 🧰 Tech
 
-TypeScript · React · Cloudflare Workers · Hono · Vite · Tailwind · Node · Python
+TypeScript · React · Hono · Vite · Tailwind · Node · Python
 
 <!--
   This README renders on github.com/Talador12 as the profile page.
