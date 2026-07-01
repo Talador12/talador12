@@ -11,41 +11,40 @@ See `claude.md` for current focus and recent changes. This file (`AGENTS.md`) is
 - **The README is a public artifact.** Anyone visiting github.com/Talador12 sees it. Be thoughtful about wording, employment framing, contact info, and anything personally identifying.
 - **Don't add personal info Keith hasn't explicitly approved.** Real name, location, phone, employment status, work history — ask first.
 - **No build step, no runtime deps.** Markdown + a Makefile template only. Resist scope creep (no GitHub Actions, badge fetchers, stats cards) unless explicitly asked.
-- **`.zshrc` is symlinked from `~/.zshrc`.** The file in this repo IS the live shell config — editing it changes Keith's shell on next sourced load. Never commit secrets, API tokens, or anything you wouldn't push to a public repo. Work-specific config (GEICO kubectl, Azure tokens) belongs in `~/.zsh/geico.zsh`; other secrets in `~/.zsh/secrets.zsh` — both sourced conditionally, neither tracked.
+- **`.zshrc` is symlinked from `~/.zshrc`.** The file in this repo IS the live shell config. Never commit secrets or employer-specific config. Local-only files: `~/.zsh/local.zsh` (work env, second GitHub account), `~/.zsh/laptop.mk` (work make targets), `~/.zsh/secrets.zsh`.
 
 ## Quick Reference
 
 ```bash
-make help        # list all targets
-make status      # branch, last commit, version, port usage
-make commit M='message'   # format + add + commit + push
+make help              # list targets
+make setup             # first-time laptop bootstrap
+make status            # shell, toolchains, GitHub health
+make symlink-dotfiles  # wire ~/Makefile, ~/.zshrc, etc. → repo
 ```
 
-The laptop runbook lives in **`Makefile.laptop`** — that is the single source of truth. `make` works from `~` or from this repo:
+**Edit in the repo; home is symlinks.**
 
-| File | Purpose |
-|------|---------|
-| `Makefile.laptop` | Laptop runbook (GitHub, shell, toolchains) — **edit this** |
-| `Makefile` | Symlink → `Makefile.laptop` (so `make` works in-repo) |
-| `Makefile.template` | Generic project template — copy into new repos |
-| `~/Makefile` | Symlink → `Makefile.laptop` (so `make` works from home) |
+| File | What it is |
+|------|------------|
+| `Makefile.laptop` | Laptop runbook — **edit this** |
+| `Makefile` | Symlink → `Makefile.laptop` (run `make` in-repo) |
+| `Makefile.template` | Generic project template — copy to new repos |
+| `~/Makefile` | Symlink → repo `Makefile` (run `make` from home) |
 
-Run `make symlink-home` after clone to wire up `~/Makefile`, `~/.zshrc`, `~/AGENTS.md`, `~/claude.md`.
-
-Copy **`Makefile.template`** (not `Makefile.laptop`) when starting a new project.
+Also symlinked: `~/.zshrc`, `~/AGENTS.md`, `~/claude.md`. Run `make symlink-dotfiles` after clone.
 
 ## Toolchain philosophy
 
-One fast, purpose-built tool per language — no pyenv/pip/poetry, no nvm/npm, no asdf catch-all:
+One fast tool per language:
 
-| Language | Tool | Use for |
-|----------|------|---------|
-| Python | **uv** | versions, venv, deps, `uv run` |
-| Rust | **rustup** | toolchains, `cargo` |
-| Go | **mise** | global version pin (projects use `go.mod` toolchain) |
-| Node | **bun** | runtime + packages |
+| Language | Tool | Not |
+|----------|------|-----|
+| Python | **uv** | pyenv, pip, poetry |
+| Rust | **rustup** | — |
+| Go | **mise** | — |
+| Node | **bun** | nvm, npm |
 
-`make setup-dev-tools` / `make dev-tools-status` / `make dev-tools-update`
+`make setup-dev-tools` installs all. `make dev-tools-update` upgrades.
 
 ## Layout
 

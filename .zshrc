@@ -3,8 +3,8 @@ if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]
   source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
 fi
 
-# Local-only config (work env, secrets) — never commit these files.
-[[ -f ~/.zsh/geico.zsh ]] && source ~/.zsh/geico.zsh
+# Local-only config — never commit (work env, secrets, second GitHub account).
+[[ -f ~/.zsh/local.zsh ]] && source ~/.zsh/local.zsh
 [[ -f ~/.zsh/secrets.zsh ]] && source ~/.zsh/secrets.zsh
 
 export ZSH="$HOME/.oh-my-zsh"
@@ -24,35 +24,25 @@ plugins=(
 source $ZSH/oh-my-zsh.sh
 
 ##############################################################
-#                     GitHub dual-account                    #
+#                     GitHub (personal)                      #
 ##############################################################
 
 export REPOS_PERSONAL=~/repos/talador12
-export REPOS_GEICO=~/repos/geico
 
-alias cdp='cd "$REPOS_PERSONAL"'
-alias cdg='cd "$REPOS_GEICO"'
 alias repos='cd ~/repos'
+alias cdp='cd "$REPOS_PERSONAL"'
+alias talador12='cd "$REPOS_PERSONAL"'
+alias adventure='cd "$REPOS_PERSONAL/adventure" 2>/dev/null || cd "$REPOS_PERSONAL"'
 
 gh-personal() { gh auth switch -u Talador12; }
-gh-geico()    { gh auth switch -u keithadler_geico; }
 
 clone-personal() {
   gh auth switch -u Talador12
   git clone "https://github.com/${1}.git" "$REPOS_PERSONAL/$(basename "$1")"
 }
 
-clone-geico() {
-  gh auth switch -u keithadler_geico
-  git clone "https://github.com/${1}.git" "$REPOS_GEICO/$(basename "$1")"
-}
-
 github-keys() {
-  echo "=== Personal (Talador12) ==="
   cat ~/.ssh/id_ed25519_personal.pub
-  echo ""
-  echo "=== GEICO (keithadler_geico) ==="
-  cat ~/.ssh/id_ed25519_geico.pub
 }
 
 ##############################################################
@@ -75,20 +65,9 @@ else
   alias lsr="ls -la"
 fi
 
-alias talador12='cd "$REPOS_PERSONAL"'
-alias adventure='cd "$REPOS_PERSONAL/adventure" 2>/dev/null || cd "$REPOS_PERSONAL"'
-
 ##############################################################
-#                     Prompt & appearance                    #
+#                     Prompt                                 #
 ##############################################################
-
-if command -v figlet &>/dev/null; then
-  GEICO_BLUE="\e[38;5;27m"
-  STOPCOLOR="\e[0m"
-  printf "${GEICO_BLUE}"
-  figlet -c -l "GEICO"
-  printf "${STOPCOLOR}"
-fi
 
 ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=5'
 typeset -g POWERLEVEL9K_INSTANT_PROMPT=quiet
@@ -97,10 +76,7 @@ typeset -g POWERLEVEL9K_INSTANT_PROMPT=quiet
 
 ##############################################################
 #                     Toolchains                             #
-#  Python → uv       (versions, venv, deps, run)
-#  Rust   → rustup   (official toolchain manager)
-#  Go     → mise     (version pin; projects use go.mod toolchain)
-#  Node   → bun      (runtime + packages; use mise node only if needed)
+#  Python → uv    Rust → rustup    Go → mise    Node → bun
 ##############################################################
 
 if command -v mise &>/dev/null; then
