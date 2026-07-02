@@ -12,6 +12,9 @@ New laptop setup (2026-07-01). Profile repo is dotfiles source of truth — home
 
 ## Recent Changes
 
+### 2026-07-01 (e)
+- **secrets.zsh** — established as the only place for credentials (`~/.zsh/secrets.zsh`, local-only, never symlinked). Added `secrets.zsh.example` to repo. Secrets load before `local.zsh`.
+
 ### 2026-07-01 (d)
 - **Privacy** — removed all employer references from public repo. Work GitHub, kubectl, banner → `~/.zsh/local.zsh` + `~/.zsh/laptop.mk` (local only).
 

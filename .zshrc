@@ -3,9 +3,10 @@ if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]
   source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
 fi
 
-# Local-only config — never commit (work env, secrets, second GitHub account).
-[[ -f ~/.zsh/local.zsh ]] && source ~/.zsh/local.zsh
+# Local-only config — never commit to any repo.
+# secrets.zsh loads first (passwords/tokens), then local.zsh (work env).
 [[ -f ~/.zsh/secrets.zsh ]] && source ~/.zsh/secrets.zsh
+[[ -f ~/.zsh/local.zsh ]] && source ~/.zsh/local.zsh
 
 export ZSH="$HOME/.oh-my-zsh"
 ZSH_THEME="powerlevel10k/powerlevel10k"

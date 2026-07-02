@@ -11,7 +11,9 @@ See `claude.md` for current focus and recent changes. This file (`AGENTS.md`) is
 - **The README is a public artifact.** Anyone visiting github.com/Talador12 sees it. Be thoughtful about wording, employment framing, contact info, and anything personally identifying.
 - **Don't add personal info Keith hasn't explicitly approved.** Real name, location, phone, employment status, work history — ask first.
 - **No build step, no runtime deps.** Markdown + a Makefile template only. Resist scope creep (no GitHub Actions, badge fetchers, stats cards) unless explicitly asked.
-- **`.zshrc` is symlinked from `~/.zshrc`.** The file in this repo IS the live shell config. Never commit secrets or employer-specific config. Local-only files: `~/.zsh/local.zsh` (work env, second GitHub account), `~/.zsh/laptop.mk` (work make targets), `~/.zsh/secrets.zsh`.
+- **`.zshrc` is symlinked from `~/.zshrc`.** The file in this repo IS the live shell config. Never commit secrets or employer-specific config.
+- **Secrets go in `~/.zsh/secrets.zsh` only.** Passwords, API keys, tokens — always there, never in repo files, never symlinked. Agents must not put secrets in `.zshrc`, `local.zsh`, or any tracked file.
+- **Other local-only files:** `~/.zsh/local.zsh` (work env, second GitHub account), `~/.zsh/laptop.mk` (work make targets). See `secrets.zsh.example` for variable names.
 
 ## Quick Reference
 
@@ -31,7 +33,8 @@ make symlink-dotfiles  # wire ~/Makefile, ~/.zshrc, etc. → repo
 | `Makefile.template` | Generic project template — copy to new repos |
 | `~/Makefile` | Symlink → repo `Makefile` (run `make` from home) |
 
-Also symlinked: `~/.zshrc`, `~/AGENTS.md`, `~/claude.md`. Run `make symlink-dotfiles` after clone.
+Also symlinked: `~/.zshrc`, `~/AGENTS.md`, `~/claude.md`. **Not** symlinked: `~/.zsh/secrets.zsh` (secrets stay local).
+Run `make symlink-dotfiles` after clone.
 
 ## Toolchain philosophy
 
@@ -56,6 +59,7 @@ One fast tool per language:
 | `Makefile.template` | Generic Makefile template (copy into new repos as `Makefile`). |
 | `Makefile.laptop` | Laptop runbook — source of truth; symlinked as `Makefile` and `~/Makefile`. |
 | `.zshrc` | Symlinked from `~/.zshrc`. The repo file IS the live shell config — public. |
+| `secrets.zsh.example` | Template of secret variable names — copy to `~/.zsh/secrets.zsh` (local only). |
 | `LICENSE` | MIT, © Keith Adler. |
 
 ## Editing the README
