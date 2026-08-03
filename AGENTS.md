@@ -56,6 +56,27 @@ Keith's PR comments always use one of these prefixes:
 
 When triaging review feedback on Keith's PRs, treat only `req:` items as blocking. `nit:` is optional.
 
+## PR feedback and CI (agents)
+
+When Keith asks to address PR review comments or CI failures:
+
+1. Review PR feedback and CI pipeline status for the PR.
+2. Implement all requested fixes. Fix any broken pipelines.
+3. Repush.
+4. Reply on each addressed thread with a short note (e.g. "fixed with new commit") and resolve those threads.
+
+Review replies stay minimal. See **Writing style** below. Do not write long explanations in GitHub threads unless the reviewer asked a question that needs an answer.
+
+## Commit and push (agents)
+
+When a task is done, commit and push in the same session. Do not leave finished work only on disk for Keith to push later.
+
+1. Commit with a clear message (see **Git commits** and **Commit messages** below).
+2. Verify HEAD has no commit trailers before pushing.
+3. Push to the remote branch unless Keith explicitly said not to.
+
+If push fails (auth, permissions, hook rejection), report the error and what was committed locally; do not treat "committed but not pushed" as done.
+
 ## Quick Reference
 
 ```bash
