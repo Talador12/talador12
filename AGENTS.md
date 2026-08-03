@@ -75,6 +75,8 @@ When a task is done, commit and push in the same session. Do not leave finished 
 2. Verify HEAD has no commit trailers before pushing.
 3. Push to the remote branch unless Keith explicitly said not to.
 
+**GitHub accounts:** personal repos (`Talador12/*`) need `gh auth switch -u Talador12` before push. Work repos (`geico-private/*`) need `keithadler_geico`. Swap with `gh auth switch` if push returns 403.
+
 If push fails (auth, permissions, hook rejection), report the error and what was committed locally; do not treat "committed but not pushed" as done.
 
 ## Quick Reference
